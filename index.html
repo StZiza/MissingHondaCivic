@@ -286,30 +286,40 @@
 
             function closeModal() {
                 modalBackdrop.classList.remove('open');
-                modalBackdrop.classList.add('pointer-events-none');
+                // Removed pointer-events-none for simpler transition cleanup
+                setTimeout(() => {
+                    modalBackdrop.classList.add('pointer-events-none');
+                }, 300); // Waits for transition to finish
             }
 
             modalClose.addEventListener('click', closeModal);
             modalBackdrop.addEventListener('click', (e) => {
+                // Ensure click is on the backdrop itself, not the content box
                 if (e.target === modalBackdrop) {
                     closeModal();
                 }
             });
 
             function updateAllyHighlighting() {
-                const selectedId = select.value;
+                // FIX: Ensure selectedId is an integer for lookup in the allyMatrix
+                const selectedId = parseInt(select.value); 
                 const cards = document.querySelectorAll('.delegate-card');
                 
                 cards.forEach(card => {
                     card.classList.remove('ally', 'opponent', 'neutral');
-                    if (selectedId === 'none') return;
+                    
+                    // If 'none' selected or invalid ID, stop highlighting
+                    if (isNaN(selectedId)) return; 
 
-                    const cardId = card.dataset.id;
+                    // FIX: Ensure cardId is an integer for lookup
+                    const cardId = parseInt(card.dataset.id);
+                    
                     if (cardId === selectedId) {
                         card.classList.add('neutral');
                         return;
                     }
                     
+                    // allyMatrix[number][number] lookup now works reliably
                     const relationship = allyMatrix[selectedId] ? allyMatrix[selectedId][cardId] : null;
                     if (relationship) {
                         card.classList.add(relationship);
