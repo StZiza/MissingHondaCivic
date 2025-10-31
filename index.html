@@ -1,413 +1,444 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UNCATOC: The Honda Civic Case</title>
+    <title>UNCATOC: The Honda Civic Casefile - V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chosen Palette: Calm Neutral (Stone, Slate, and Teal) -->
-    <!-- Application Structure Plan: A single-page "Situation Room" dashboard. The structure is thematic, not linear, to allow delegates to quickly access the information they need during a debate. It uses a sticky nav to jump between four key sections: 1. Case Overview (introduction), 2. Core Conflict (an interactive scenario analyzer with a dynamic chart), 3. Key Players (a dynamic "Dossier" system to look up delegate stances), and 4. Resolution Paths (a 3-column layout to visualize blocs). This structure was chosen to transform the static guide into an active tool for debate, prioritizing quick lookups and scenario-planning over linear reading. -->
-    <!-- Visualization & Content Choices:
-        1. Report Info: Scenarios (Model vs. Real Car) -> Goal: Compare jurisdictional implications -> Viz: Interactive buttons updating a text block and a Chart.js bar chart. Interaction: User clicks a scenario button, JS updates the chart data and a details-box to show implications. Justification: Visually contrasts the absurdity and seriousness of the claims. Library: Chart.js (Canvas).
-        2. Report Info: 11 Delegate Stances -> Goal: Quick lookup of any delegate's position -> Viz: A two-column "Dossier" system. Interaction: User clicks a delegate name from a list, JS dynamically populates a "Dossier" card with their stance. Justification: Far more usable during a debate than a long, static table. Method: JS (DOM manipulation) + Tailwind.
-        3. Report Info: Resolution Paths -> Goal: Show the three outcomes and their supporters -> Viz: A 3-column card layout. Interaction: Static display. Justification: Clearly organizes the three end-goals and helps delegates identify allies. Method: HTML/Tailwind Grid.
-    -->
+    <!-- Chosen Palette: Calm Neutral (Tailwind 'slate', 'sky', 'white') -->
+    <!-- Application Structure Plan: A single-page dashboard with sticky top navigation ('Briefing', 'Dossiers', 'Analysis', 'Resolutions'). The Dossiers section is redesigned into a two-column index (left: delegate list, right: detail panel) to ensure reliable loading and clear presentation of complex strategic data. This functional structure guides the delegate logically through the case facts and strategic landscape. -->
+    <!-- Visualization & Content Choices: Report Info: Delegate Stances (Table IV) -> Goal: Provide strategic grouping for delegates -> Viz: JS-powered detail panel update -> Interaction: User clicks delegate name, right panel updates with full stance, allies, and opponents (list format) -> Justification: Replaced buggy grid manipulation with a reliable split-panel view for strategic analysis. | Report Info: Delegate Stances (Table IV) -> Goal: Compare delegate alignment on the core issue (jurisdiction) -> Viz: Horizontal Bar Chart (Chart.js) -> Interaction: None (static viz). | Report Info: Key Terms (Table V) -> Goal: Inform -> Viz: HTML Definition List -> Interaction: None. | Report Info: Resolution Paths (Section VI) -> Goal: Inform/Organize -> Viz: 3-column HTML/Tailwind Card Grid -> Interaction: None. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
         .chart-container {
             position: relative;
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
             margin-left: auto;
             margin-right: auto;
-            height: 350px;
-            max-height: 400px;
+            height: 450px;
+            max-height: 500px;
         }
         @media (min-width: 768px) {
             .chart-container {
-                height: 400px;
+                height: 500px;
             }
         }
-        .dossier-list-item.active {
-            background-color: #0D9488;
-            color: #ffffff;
+        
+        .nav-link {
+            @apply px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors;
         }
-        .dossier-list-item.active:hover {
-            background-color: #0F766E;
+        .nav-link.active {
+            @apply bg-slate-900 text-white;
         }
-        html {
-            scroll-behavior: smooth;
+        
+        .delegate-item {
+            @apply p-4 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors;
+        }
+        .delegate-item.active {
+            @apply bg-sky-100 border-sky-500 font-semibold;
+        }
+
+        .delegate-item:last-child {
+            @apply border-b-0;
         }
     </style>
 </head>
-<body class="bg-stone-50 font-sans text-slate-900">
+<body class="bg-slate-100 text-slate-800">
 
-    <header class="bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <h1 class="text-3xl font-bold tracking-tight text-teal-800">UNCATOC: Situation Room</h1>
-            <h2 class="text-xl font-medium text-slate-600">Special Committee on the Missing Honda Civic of M. Mert Apalı</h2>
+    <header class="bg-slate-800 text-white p-4 sticky top-0 z-40 shadow-md">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-2xl font-bold text-center md:text-left">UNCATOC: The Honda Civic Casefile</h1>
+            <nav id="navbar" class="flex flex-wrap justify-center space-x-2 md:space-x-4 mt-2 md:mt-0">
+                <a href="#briefing" class="nav-link">Situation Briefing</a>
+                <a href="#dossiers" class="nav-link">Delegate Dossiers</a>
+                <a href="#analysis" class="nav-link">Strategic Analysis</a>
+                <a href="#resolutions" class="nav-link">Resolution Paths</a>
+            </nav>
         </div>
     </header>
 
-    <nav class="sticky top-0 bg-teal-700 text-white shadow-lg z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-center h-16 space-x-4 md:space-x-8">
-                <a href="#overview" class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors">Case Overview</a>
-                <a href="#conflict" class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors">Core Conflict</a>
-                <a href="#players" class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors">Key Players</a>
-                <a href="#resolutions" class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors">Resolution Paths</a>
-            </div>
-        </div>
-    </nav>
+    <main class="container mx-auto p-4 md:p-8">
 
-    <main class="max-w-7xl mx-auto p-4 md:p-8">
-
-        <section id="overview" class="mb-12 scroll-mt-20">
-            <h3 class="text-2xl font-semibold text-teal-900 border-b-2 border-teal-200 pb-2">I. The Absurd Mandate</h3>
-            <p class="mt-4 text-lg text-slate-700 leading-relaxed">
-                Welcome, delegates, to the Situation Room. Our committee, the UN Convention Against Transnational Organized Crime, typically handles global threats. Today, we face a unique challenge: the case of a missing Honda Civic. This dashboard is your tool to analyze the facts, understand the stakeholders, and navigate the complex (and absurd) legal landscape before us.
-            </p>
-            <p class="mt-4 text-lg text-slate-700 leading-relaxed">
-                Our central task is to determine if this is a simple classroom dispute or a case falling under the **Palermo Protocol**. To have jurisdiction, we must find evidence of:
-            </p>
-            <ul class="list-disc list-inside mt-4 space-y-2 text-slate-700">
-                <li>An **Organized Criminal Group** (3+ persons).</li>
-                <li>A **Serious Crime** (punishable by 4+ years).</li>
-                <li>A **Transnational Nature** (crossing borders).</li>
-            </ul>
-        </section>
-
-        <section id="conflict" class="mb-12 scroll-mt-20">
-            <h3 class="text-2xl font-semibold text-teal-900 border-b-2 border-teal-200 pb-2">II. The Core Conflict: Scenario Analyzer</h3>
-            <p class="mt-4 text-lg text-slate-700 leading-relaxed">
-                The entire case hinges on the nature of the missing item. Use the buttons below to explore the competing theories and their implications for UNCATOC's jurisdiction. Your selection will update the chart and the analysis details.
+        <section id="briefing" class="mb-12 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-4 text-slate-900 border-b-2 border-slate-300 pb-2">Situation Briefing</h2>
+            <p class="text-lg text-slate-600 mb-6">
+                Welcome, delegates. This briefing provides the complete context for the case before us. It outlines the core legal mandate of this committee, the bizarre nature of the dispute, and the key theories surrounding the alleged incident. Understanding this foundation is critical before engaging with other delegates.
             </p>
 
-            <div class="mt-6 flex flex-wrap justify-center gap-4">
-                <button id="btn-scenario-model" class="scenario-btn px-6 py-3 bg-white border-2 border-teal-600 text-teal-700 font-semibold rounded-lg shadow-md hover:bg-teal-50 transition-all">
-                    Scenario A: 1:57 Scale Model
-                </button>
-                <button id="btn-scenario-real" class="scenario-btn px-6 py-3 bg-white border-2 border-slate-400 text-slate-600 font-semibold rounded-lg shadow-md hover:bg-slate-50 transition-all">
-                    Scenario B: Full-Sized Car
-                </button>
-                <button id="btn-scenario-denial" class="scenario-btn px-6 py-3 bg-white border-2 border-red-500 text-red-600 font-semibold rounded-lg shadow-md hover:bg-red-50 transition-all">
-                    Scenario C: The Denial
-                </button>
-            </div>
-
-            <div class="mt-8 md:grid md:grid-cols-2 md:gap-8 items-center">
-                <div class="bg-white p-6 rounded-lg shadow-lg">
-                    <h4 class="text-xl font-semibold text-slate-800 mb-3">Analysis & Implications</h4>
-                    <div id="scenario-details" class="text-slate-700 space-y-3">
-                        <p class="font-semibold text-lg">Select a scenario to begin analysis.</p>
-                        <p>The jurisdiction of this committee depends entirely on whether the item's theft constitutes a "serious, transnational crime" or a "minor, domestic dispute."</p>
-                    </div>
-                </div>
-                <div class="mt-8 md:mt-0">
-                    <h4 class="text-xl font-semibold text-slate-800 mb-3 text-center">UNCATOC Jurisdiction Likelihood</h4>
-                    <div class="chart-container">
-                        <canvas id="jurisdictionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="players" class="mb-12 scroll-mt-20">
-            <h3 class="text-2xl font-semibold text-teal-900 border-b-2 border-teal-200 pb-2">III. Key Players: Delegate Dossiers</h3>
-            <p class="mt-4 text-lg text-slate-700 leading-relaxed">
-                This case is defined by its 11 key players. Select a delegate from the list on the left to review their official position in the dossier on the right. Understanding these conflicting motives is critical to forming alliances.
-            </p>
-            <div class="mt-8 md:grid md:grid-cols-3 md:gap-8">
-                <div class="md:col-span-1 bg-white p-4 rounded-lg shadow-lg h-full max-h-[600px] overflow-y-auto">
-                    <h4 class="text-lg font-semibold text-slate-800 mb-4">Delegate List</h4>
-                    <ul id="delegate-list" class="space-y-2">
-                        <li><button data-delegate-id="1" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">1. Mr. M. Mert Apalı</button></li>
-                        <li><button data-delegate-id="2" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">2. Ms. Elif Yılmaz</button></li>
-                        <li><button data-delegate-id="3" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">3. Mr. Mehmet Ali Beypınar</button></li>
-                        <li><button data-delegate-id="4" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">4. Inspector Juliette Dubois</button></li>
-                        <li><button data-delegate-id="5" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">5. Dr. Arslan Demir</button></li>
-                        <li><button data-delegate-id="6" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">6. Mr. Hans Bricker</button></li>
-                        <li><button data-delegate-id="7" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">7. Ms. Akari Tanaka</button></li>
-                        <li><button data-delegate-id="8" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">8. Mr. David Chen</button></li>
-                        <li><button data-delegate-id="9" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">9. Mr. Kenji Watanabe</button></li>
-                        <li><button data-delegate-id="10" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">10. Mr. Dimitri Volkov</button></li>
-                        <li><button data-delegate-id="11" class="dossier-list-item w-full text-left px-4 py-3 rounded-md bg-slate-100 hover:bg-teal-100 transition-colors font-medium">11. Father Pietro Rossi</button></li>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold mb-3 text-slate-800">The Mandate vs. The Mystery</h3>
+                    <p class="mb-4">This committee is convened under the serious mandate of the <strong>United Nations Convention Against Transnational Organized Crime (UNCATOC)</strong>. Our purpose is to combat major global crimes like drug trafficking, human smuggling, and illicit trade in firearms. The primary challenge is applying this serious legal framework to the current dispute.</p>
+                    <p class="mb-4">The core legal thresholds for UNCATOC intervention are:</p>
+                    <ul class="list-disc list-inside space-y-2 mb-4 pl-4">
+                        <li><strong class="font-semibold">Organised Criminal Group:</strong> A structured group of three or more persons.</li>
+                        <li><strong class="font-semibold">Serious Crime:</strong> An offence punishable by at least four years of liberty deprivation (hinges on the car's value).</li>
+                        <li><strong class="font-semibold">Transnational Nature:</strong> Evidence the crime crossed borders (e.g., a smuggling ring).</li>
                     </ul>
+                    <p class="mb-4">Delegates must decide if the absurdity of the claims outweighs the potential for a serious, transnational crime involving valuable assets.</p>
+                    <p class="font-medium text-slate-700">This case revolves around "The Anonymous Facilitator" (the teacher), who allegedly confiscated M. Mert Apalı’s Honda Civic. The teacher and most students deny the event entirely, claiming to have "<strong>seen no Honda Civic in his/her life</strong>."</p>
                 </div>
-                <div class="md:col-span-2 mt-8 md:mt-0 bg-white p-6 rounded-lg shadow-2xl border-t-8 border-teal-600">
-                    <h4 class="text-2xl font-bold text-slate-800" id="dossier-name">Select a Delegate</h4>
-                    <p class="text-lg font-medium text-teal-700 mb-4" id="dossier-role">Dossier File</p>
-                    <div class="text-slate-700 space-y-3 leading-relaxed" id="dossier-stance">
-                        <p>Click on a name from the list to load their official position, motives, and core stance on the Honda Civic incident.</p>
+                <div class="bg-white p-6 rounded-lg shadow space-y-4">
+                    <h3 class="text-2xl font-semibold mb-3 text-slate-800">Personal Dossier</h3>
+                    <p class="text-sm"><strong>Subject: M. Mert Apalı</strong></p>
+                    <p>Subject views his 1:57 scale JDM Honda Civic Type R (EK9) not as a toy, but as a <strong class="font-semibold text-sky-700">portable asset and highly valued memorabilia</strong>. His passion is tied to his disruptive behavior, as he frequently brings models to class for "emotional support." His established history of non-compliance is a major argument for the Defense Counsel.</p>
+                </div>
+            </div>
+
+            <h3 class="text-2xl font-semibold mt-8 mb-4 text-slate-800">Three Competing Theories</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-sky-500">
+                    <h4 class="text-xl font-bold mb-2">Apalı's Claim</h4>
+                    <p class="text-sm">The car was a valuable <strong class="font-semibold">1:57 scale model</strong> and limited-edition "memorabilia." He believes the teacher recognized its value and stole it as part of a practiced, professional theft.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-red-500">
+                    <h4 class="text-xl font-bold mb-2">The Denial</h4>
+                    <p class="text-sm">The teacher and most students deny the event. The teacher claims to have <strong class="font-semibold">"seen no Honda Civic in his/her life."</strong> This suggests either a complete fabrication by Apalı or a highly coordinated cover-up.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-yellow-500">
+                    <h4 class="text-xl font-bold mb-2">The Beypınar Factor</h4>
+                    <p class="text-sm">Apalı's friend, Mehmet Ali Beypınar, insists the car was a <strong class="font-semibold">full-sized, real vehicle.</strong> While logistically impossible, this is the only theory that automatically qualifies as a "Serious Crime" (grand theft auto).</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="dossiers" class="mb-12 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-4 text-slate-900 border-b-2 border-slate-300 pb-2">Delegate Dossiers: Strategic Index</h2>
+            <p class="text-lg text-slate-600 mb-6">
+                Click any delegate on the left to view their complete stance, role, and pre-calculated strategic alignment (allies and opponents). This is your primary tool for coalition building.
+            </p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Delegate Index (Left Column) -->
+                <div class="bg-white rounded-lg shadow overflow-hidden h-[60vh] lg:h-[70vh] flex flex-col">
+                    <h4 class="text-xl font-semibold p-4 border-b border-slate-200 bg-slate-50 text-slate-800">Committee Index (Click to View)</h4>
+                    <div id="delegate-list" class="flex-grow overflow-y-auto divide-y divide-slate-100">
+                        <!-- Delegate items populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Delegate Details (Right Column) -->
+                <div id="delegate-detail-panel" class="lg:col-span-2 bg-white rounded-lg shadow-xl p-6 h-[60vh] lg:h-[70vh] flex flex-col justify-start">
+                    <h4 id="detail-name" class="text-3xl font-bold text-slate-900 mb-1">Select a Delegate</h4>
+                    <p id="detail-entity" class="text-lg text-sky-600 font-medium uppercase tracking-wider mb-4"></p>
+                    <div id="detail-content" class="flex-grow overflow-y-auto space-y-4">
+                        <p class="text-slate-500 italic">Click a name from the index to load their full core stance, alignment score, and strategic breakdown.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="resolutions" class="mb-12 scroll-mt-20">
-            <h3 class="text-2xl font-semibold text-teal-900 border-b-2 border-teal-200 pb-2">IV. Proposed Resolution Paths</h3>
-            <p class="mt-4 text-lg text-slate-700 leading-relaxed">
-                The debate will likely consolidate around three potential outcomes. Review these paths to understand the end-game for this committee and identify your potential allies and opposition.
+        <section id="analysis" class="mb-12 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-4 text-slate-900 border-b-2 border-slate-300 pb-2">Strategic Analysis</h2>
+            <p class="text-lg text-slate-600 mb-6">
+                This section provides a visual overview of the committee's alignment and a glossary of key intelligence terms. Use this data to inform your strategic approach and understand the nuanced arguments at play.
             </p>
-            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-                
-                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-600">
-                    <h4 class="text-xl font-semibold text-blue-800">1. The Interventionist Path</h4>
-                    <p class="mt-3 text-slate-700">Invoke Article 3 of the Palermo Protocol. Mandate a full, Interpol-led international retrieval operation for the Honda Civic, citing high-value organized crime.</p>
-                    <p class="mt-4 text-sm font-semibold text-slate-600">FAVORED BY:</p>
-                    <p class="text-sm text-slate-800">Apalı, Beypınar, GMCCA</p>
-                </div>
 
-                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-red-600">
-                    <h4 class="text-xl font-semibold text-red-800">2. The Dismissal Path</h4>
-                    <p class="mt-3 text-slate-700">Explicitly state that UNCATOC has no jurisdiction. Reclassify the incident as a sovereign, domestic educational matter and condemn the waste of UN resources.</p>
-                    <p class="mt-4 text-sm font-semibold text-slate-600">FAVORED BY:</p>
-                    <p class="text-sm text-slate-800">Counsel (Teacher), Ministry of Ed., Russian Federation</p>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold mb-4 text-slate-800">Delegate Alignment on Intervention</h3>
+                    <p class="text-sm text-slate-500 mb-4">This chart visualizes each delegate's general stance towards UNCATOC intervention in this case, from full dismissal to aggressive intervention.</p>
+                    <div class="chart-container">
+                        <canvas id="stanceChart"></canvas>
+                    </div>
                 </div>
-
-                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-yellow-600">
-                    <h4 class="text-xl font-semibold text-yellow-800">3. The Fact-Finding Path</h4>
-                    <p class="mt-3 text-slate-700">Delay a full investigation. Authorize a preliminary, UNODC-led fact-finding mission to report on the credibility of the claims before committing resources. May also recommend mediation.</p>
-                    <p class="mt-4 text-sm font-semibold text-slate-600">FAVORED BY:</p>
-                    <p class="text-sm text-slate-800">Interpol, UNODC, Vatican City, Japan (conditional)</p>
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold mb-4 text-slate-800">Key Intelligence Terms</h3>
+                    <dl id="key-terms-list" class="divide-y divide-slate-200">
+                    </dl>
                 </div>
+            </div>
+        </section>
 
+        <section id="resolutions" class="mb-12 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-4 text-slate-900 border-b-2 border-slate-300 pb-2">Resolution Paths</h2>
+            <p class="text-lg text-slate-600 mb-6">
+                These are the three most likely outcomes for this committee. Your goal is to navigate the debate towards the path that best aligns with your delegate's core objectives.
+            </p>
+
+            <div id="resolutions-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
             </div>
         </section>
 
     </main>
 
-    <footer class="bg-slate-800 text-stone-300 py-8 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p>&copy; 2025 UNCATOC Special Committee. This interactive dashboard is classified.</p>
-            <p class="text-sm text-slate-400 mt-1">Delegates are reminded to maintain the illusion of legitimacy at all times.</p>
-        </div>
+    <footer class="bg-slate-800 text-slate-300 text-center p-4 mt-12">
+        <p class="text-sm">&copy; 2025 UNCATOC Special Committee | This is a fictional simulation for educational purposes.</p>
     </footer>
 
     <script>
-        const delegateData = {
-            "1": {
-                name: "Mr. M. Mert Apalı",
-                role: "The Plaintiff/Victim",
-                stance: "The car, a valuable 1:57 scale memorabilia, was wrongfully confiscated and stolen by an organized criminal network disguised as a teacher. He demands full restitution and justice for this heinous act."
-            },
-            "2": {
-                name: "Ms. Elif Yılmaz",
-                role: "Chief Defense Counsel (for the Teacher)",
-                stance: "The incident is imaginary. While a teacher has the right to confiscate disruptive objects, she maintains no car was ever present. The plaintiff, Mr. Apalı, is engaging in a campaign of defamation and harassment."
-            },
-            "3": {
-                name: "Mr. Mehmet Ali Beypınar",
-                role: "Key Witness & Advocate",
-                stance: "The car was *real*—a full-sized prototype, not a toy. The teacher's denial is definitive proof of a high-level conspiracy. He demands UNCATOC intervene immediately to recover the vehicle."
-            },
-            "4": {
-                name: "Inspector Juliette Dubois",
-                role: "Interpol",
-                stance: "Interpol is highly skeptical of the 'real car' theory. However, it is investigating the potential of a high-value smuggling ring targeting rare model cars. The primary goal is to establish jurisdiction before committing resources."
-            },
-            "5": {
-                name: "Dr. Arslan Demir",
-                role: "The Ministry of Education (Relevant State)",
-                stance: "This is a trivial, domestic, educational matter. The teacher's right to maintain discipline is upheld. UNCATOC has no business in this affair, and the investigation must be closed immediately to protect state sovereignty."
-            },
-            "6": {
-                name: "Mr. Hans Bricker",
-                role: "Global Model Car Collectors Association (GMCCA)",
-                stance: "A rare 1:57 model is a cultural artifact of significant monetary value, potentially surpassing $150,000 due to scarcity. The systematic theft of such items constitutes organized crime. Demands UNCATOC recognize model cars as high-value assets and mandate recovery."
-            },
-            "7": {
-                name: "Ms. Akari Tanaka",
-                role: "The Honda Motor Company Legal Team",
-                stance: "As the intellectual property holder, Honda officially denies ever producing a high-value, limited-edition 1:57 model. The car is likely an unauthorized, cheap counterfeit. Investigating low-value counterfeits is beyond UNCATOC's scope."
-            },
-            "8": {
-                name: "Mr. David Chen",
-                role: "UN Office on Drugs and Crime (UNODC) Secretariat",
-                stance: "Focuses strictly on the Palermo Protocol. Requires definitive evidence of **three or more individuals** and **transnational activity**. The current evidence is insufficient and risks trivializing the Protocol. Prefers a procedural fact-finding mission."
-            },
-            "9": {
-                name: "Mr. Kenji Watanabe",
-                role: "Delegate of Japan",
-                stance: "Japan respects property rights and its national brands (Honda). Expresses deep concern over trademark use. Japan supports an investigation *only if* the GMCCA can definitively authenticate the model's value. Otherwise, views it as a simple, low-value disciplinary matter."
-            },
-            "10": {
-                name: "Mr. Dimitri Volkov",
-                role: "Delegate of the Russian Federation",
-                stance: "Condemns the entire proceeding as an unprecedented overreach into the sovereign disciplinary affairs of a member state. There is no evidence of transnational activity. Demands immediate dismissal to prevent UNCATOC from becoming a 'school principal's office'."
-            },
-            "11": {
-                name: "Father Pietro Rossi",
-                role: "Delegate of Vatican City",
-                stance: "Views the case as a moral crisis of truth, denial, and temptation. The organized crime is not the theft, but the **sin of covetousness** and the organized *lies* to cover a minor transgression. Calls for mediation and spiritual guidance for all parties."
-            }
-        };
+        document.addEventListener('DOMContentLoaded', () => {
 
-        const scenarioData = {
-            "model": {
-                title: "Scenario A: 1:57 Scale Model",
-                details: "Mr. Apalı's claim. Jurisdiction depends on **value**. If the GMCCA (Mr. Bricker) is correct and the model is worth >$150,000, it could meet the 'Serious Crime' threshold. However, the 'Organized Group' and 'Transnational' elements remain unproven.",
-                chartData: [7, 3, 1]
-            },
-            "real": {
-                title: "Scenario B: Full-Sized Car",
-                details: "Mr. Beypınar's claim. This scenario is logistically absurd but legally sound. The theft of a real car is undeniably a 'Serious Crime'. A rapid sale and export would meet the 'Transnational' threshold. This is the fastest path to full UNCATOC intervention, if proven.",
-                chartData: [3, 9, 1]
-            },
-            "denial": {
-                title: "Scenario C: The Denial",
-                details: "The Teacher's (Ms. Yılmaz) claim. If no car existed, there is no crime. The case is one of defamation and is a purely domestic, civil matter. UNCATOC has zero jurisdiction, and the committee must be dismissed. This is the position of the Ministry of Education and the Russian Federation.",
-                chartData: [1, 1, 0]
-            }
-        };
+            const delegateData = [
+                { id: 1, name: 'M. Mert Apalı', entity: 'The Plaintiff/Victim', stance: 'The car (a valuable 1:57 scale memorabilia) was wrongfully confiscated and stolen by an organised criminal network disguised as a teacher. Demands full restitution and justice.', alignment: 10 },
+                { id: 2, name: 'Counsel for the Teacher (Anonymous)', entity: 'Chief Defence Counsel', stance: 'The incident is imaginary. The teacher had the full right to confiscate a disruptive object, but the teacher maintains that no car was present. Apalı is engaging in defamation and harassment.', alignment: -10 },
+                { id: 3, name: 'Mehmet Ali Beypınar', entity: 'Key Witness & Advocate', stance: 'The car *was* real (a full-sized prototype, definitely not a toy). The teacher’s denial is proof of a conspiracy. UNCATOC must intervene to recover the vehicle.', alignment: 9 },
+                { id: 4, name: 'Interpol (Representative J. Jones)', entity: 'International Law Enforcement', stance: 'Highly sceptical of the "real car" theory. Focuses on investigating the potential of a high-value smuggling ring targeting rare model cars. The primary goal is establishing <strong>jurisdiction</strong>.', alignment: 3 },
+                { id: 5, name: 'The Ministry of Education (Relevant State)', entity: 'Regulatory Authority', stance: 'Upholds the teacher’s right to maintain discipline. Views the affair as a trivial <strong>domestic, educational matter</strong> that UNCATOC has no business in. Calls for the immediate closure of the investigation.', alignment: -9 },
+                { id: 6, name: 'Global Model Car Collectors Association (GMCCA) - Mr. Hans Bricker', entity: 'Specialist Expert Witness', stance: 'Provides valuation evidence. Argues that a specific, limited-edition 1:57 model *could* be high-value (>$100,000), meeting the "serious crime" threshold. Demands its recovery as cultural property.', alignment: 8 },
+                { id: 7, name: 'The Honda Motor Company Legal Team - Ms. Akari Tanaka', entity: 'Intellectual Property Holder', stance: 'Concerned with the unauthorised use of the "Honda Civic" trademark. Denies ever producing a high-value 1:57 model. Suggests Apalı\'s car was a cheap counterfeit, reducing the crime to petty theft.', alignment: -5 },
+                { id: 8, name: 'UN Office on Drugs and Crime (UNODC) Secretariat - Mr. David Chen', entity: 'UNCATOC Procedure Expert', stance: 'Focuses purely on legal adherence to the Palermo Protocol. Insists on concrete, verifiable evidence that the act involved three or more people acting in concert <strong>across borders</strong>.', alignment: 0 },
+                { id: 9, name: 'Delegate of Japan - Mr. Kenji Watanabe', entity: 'Concerned Member State', stance: 'Japan respects property rights and its national brands (Honda). Expresses deep concern over trademark use. Japan supports an investigation *only if* the GMCCA can definitively authenticate the model\'s value. Otherwise, views it as a simple, low-value disciplinary matter.', alignment: -2 },
+                { id: 10, name: 'Delegate of the Russian Federation - Mr. Dimitri Volkov', entity: 'Concerned Member State', stance: 'Condemns the entire proceeding as an unprecedented overreach into the sovereign disciplinary affairs of a member state. There is no evidence of transnational activity. Demands immediate dismissal to prevent UNCATOC from becoming a \'school principal\'s office\'.', alignment: -8 },
+                { id: 11, name: 'Delegate of Vatican City - Father Pietro Rossi', entity: 'Observer State (Moral Authority)', stance: 'Views the case as a moral crisis of truth, denial, and temptation. The organized crime is not the theft, but the <strong>sin of covetousness</strong> and the organized <strong>lies</strong> to cover a minor transgression. Calls for mediation and spiritual guidance for all parties.', alignment: 1 }
+            ];
 
-        let jurisdictionChart;
+            const keyTermsData = [
+                { term: 'Palermo Protocol', definition: 'The foundational treaty establishing UNCATOC\'s right to fight international crime.', significance: 'The central legal test: Does the Civic case meet its criteria?' },
+                { term: '1:57 Scale', definition: 'The precise miniature size of the Civic, confirmed by Apalı.', significance: 'Crucial detail; its small size undermines the "Serious Crime" claim unless its monetary value is enormous.' },
+                { term: 'Memorabilia/Asset', definition: 'Apalı’s legal term for the Civic, implying sentimental and financial value far beyond a "toy."', significance: 'Transforms the item from a toy into a potential "high-value cultural asset."' },
+                { term: 'The Beypınar Factor', definition: 'The logical impossibility championed by Mehmet Ali Beypınar—the claim that the car was a full-sized vehicle.', significance: 'The most straightforward (yet absurd) path to fulfilling the <strong>Serious Crime</strong> criteria.' },
+                { term: 'Organised Criminal Group', definition: 'Three or more persons acting in concert.', significance: 'The committee must identify the third member: Was it the Principal, the janitor, or another student?' },
+                { term: 'The Anonymous Facilitator', definition: 'The alleged teacher and main perpetrator of the crime.', significance: 'The subject of the investigation; their anonymity highlights the challenge of identifying the criminal network.' }
+            ];
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const ctx = document.getElementById('jurisdictionChart').getContext('2d');
-            jurisdictionChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Model Claim', 'Real Car Claim', 'Teacher Denial'],
-                    datasets: [{
-                        label: 'Likelihood of UNCATOC Jurisdiction',
-                        data: [7, 9, 0],
-                        backgroundColor: [
-                            'rgba(13, 148, 136, 0.6)', 
-                            'rgba(59, 130, 246, 0.6)',
-                            'rgba(239, 68, 68, 0.6)'
-                        ],
-                        borderColor: [
-                            'rgba(13, 148, 136, 1)',
-                            'rgba(59, 130, 246, 1)',
-                            'rgba(239, 68, 68, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 10,
-                            title: {
-                                display: true,
-                                text: 'Jurisdictional Likelihood (out of 10)'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-            updateScenario('model');
+            const resolutionData = [
+                { title: 'The Interventionist Path', description: 'Pass a resolution invoking Article 3 of the Palermo Protocol. Mandate an international, Interpol-led retrieval operation for the Honda Civic, citing the potential for high-value organised crime and the breach of a student’s property rights.', details: '<strong>Requires proving the existence and high value of the asset.</strong><br/>Favored by: Apalı, Beypınar' },
+                { title: 'The Disciplinary Path', description: 'Pass a resolution explicitly stating that UNCATOC has no jurisdiction. Reclassify the incident as a <strong>domestic educational/disciplinary matter</strong>, potentially handing over findings to a local school board or civil court.', details: '<strong>Requires demonstrating minimal asset value and a lack of organisation.</strong><br/>Favored by: Counsel' },
+                { title: 'The Sceptical Path', description: 'Pass a resolution acknowledging the claims but delaying action due to insufficient evidence of a transnational criminal enterprise. Recommend a deep psychological analysis of Apalı and Beypınar to determine the veracity of their claims.', details: '<strong>Allows for further "investigation" without full intervention.</strong><br/>Favored by: Interpol' }
+            ];
+            
+            const allyMatrix = {
+                1: { 3: 'ally', 6: 'ally', 2: 'opponent', 5: 'opponent', 7: 'opponent', 10: 'opponent', 4: 'neutral', 8: 'neutral', 9: 'neutral', 11: 'neutral' },
+                2: { 5: 'ally', 7: 'ally', 10: 'ally', 1: 'opponent', 3: 'opponent', 6: 'opponent', 4: 'neutral', 8: 'neutral', 9: 'neutral', 11: 'neutral' },
+                3: { 1: 'ally', 6: 'ally', 2: 'opponent', 5: 'opponent', 7: 'opponent', 10: 'opponent', 4: 'neutral', 8: 'neutral', 9: 'neutral', 11: 'neutral' },
+                4: { 8: 'ally', 9: 'ally', 1: 'neutral', 2: 'neutral', 3: 'neutral', 5: 'neutral', 6: 'neutral', 7: 'neutral', 10: 'neutral', 11: 'neutral' },
+                5: { 2: 'ally', 7: 'ally', 9: 'ally', 10: 'ally', 1: 'opponent', 3: 'opponent', 6: 'opponent', 4: 'neutral', 8: 'neutral', 11: 'neutral' },
+                6: { 1: 'ally', 3: 'ally', 2: 'opponent', 5: 'opponent', 7: 'opponent', 10: 'opponent', 4: 'neutral', 8: 'neutral', 9: 'neutral', 11: 'neutral' },
+                7: { 2: 'ally', 5: 'ally', 9: 'ally', 10: 'ally', 1: 'opponent', 3: 'opponent', 6: 'opponent', 4: 'neutral', 8: 'neutral', 11: 'neutral' },
+                8: { 4: 'ally', 9: 'ally', 11: 'neutral', 1: 'neutral', 2: 'neutral', 3: 'neutral', 5: 'neutral', 6: 'neutral', 7: 'neutral', 10: 'neutral' },
+                9: { 5: 'ally', 7: 'ally', 8: 'ally', 10: 'ally', 1: 'neutral', 3: 'neutral', 6: 'neutral', 2: 'neutral', 4: 'neutral', 11: 'neutral' },
+                10: { 2: 'ally', 5: 'ally', 7: 'ally', 9: 'ally', 1: 'opponent', 3: 'opponent', 6: 'opponent', 4: 'neutral', 8: 'neutral', 11: 'neutral' },
+                11: { 8: 'ally', 1: 'neutral', 2: 'neutral', 3: 'neutral', 4: 'neutral', 5: 'neutral', 6: 'neutral', 7: 'neutral', 9: 'neutral', 10: 'neutral' }
+            };
 
             const delegateList = document.getElementById('delegate-list');
-            const dossierName = document.getElementById('dossier-name');
-            const dossierRole = document.getElementById('dossier-role');
-            const dossierStance = document.getElementById('dossier-stance');
-            
-            delegateList.addEventListener('click', (e) => {
-                const button = e.target.closest('button.dossier-list-item');
-                if (button) {
-                    const id = button.dataset.delegateId;
-                    const data = delegateData[id];
-                    
-                    document.querySelectorAll('button.dossier-list-item').forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
-                    
-                    dossierName.textContent = data.name;
-                    dossierRole.textContent = data.role;
-                    dossierStance.innerHTML = `<p>${data.stance}</p>`;
-                }
-            });
-            document.querySelector('button[data-delegate-id="1"]').click();
+            const detailPanel = document.getElementById('delegate-detail-panel');
+            const detailName = document.getElementById('detail-name');
+            const detailEntity = document.getElementById('detail-entity');
+            const detailContent = document.getElementById('detail-content');
+            const termsList = document.getElementById('key-terms-list');
+            const resolutionsGrid = document.getElementById('resolutions-grid');
 
-            const scenarioButtons = document.querySelectorAll('.scenario-btn');
-            scenarioButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    let id;
-                    if (e.currentTarget.id === 'btn-scenario-model') id = 'model';
-                    if (e.currentTarget.id === 'btn-scenario-real') id = 'real';
-                    if (e.currentTarget.id === 'btn-scenario-denial') id = 'denial';
-                    updateScenario(id);
-                });
-            });
+            function displayDelegateDetails(delegateId) {
+                const delegate = delegateData.find(d => d.id === delegateId);
+                const relationshipMap = allyMatrix[delegateId];
+                
+                if (!delegate || !relationshipMap) return;
 
-            const navLinks = document.querySelectorAll('nav a');
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = e.currentTarget.getAttribute('href');
-                    const targetElement = document.querySelector(targetId);
-                    if (targetElement) {
-                        targetElement.scrollIntoView({
-                            behavior: 'smooth'
-                        });
+                // 1. Update Header
+                detailName.textContent = delegate.name;
+                detailEntity.textContent = delegate.entity;
+
+                // 2. Prepare Alliance Lists
+                const allies = [];
+                const opponents = [];
+                const neutrals = [];
+                
+                // Iterate through the matrix and classify delegates
+                delegateData.forEach(d => {
+                    if (d.id === delegateId) return; 
+                    
+                    const status = relationshipMap[d.id];
+                    const delegateHTML = `<span class="font-medium">${d.name}</span> (${d.entity.substring(0, 15)}...)`;
+
+                    if (status === 'ally') {
+                        allies.push(delegateHTML);
+                    } else if (status === 'opponent') {
+                        opponents.push(delegateHTML);
+                    } else if (status === 'neutral') {
+                        neutrals.push(delegateHTML);
                     }
                 });
-            });
-        });
 
-        function updateScenario(id) {
-            const data = scenarioData[id];
-            const detailsBox = document.getElementById('scenario-details');
-            
-            detailsBox.innerHTML = `
-                <p class="font-semibold text-lg text-teal-800">${data.title}</p>
-                <p>${data.details}</p>
-            `;
-            
-            jurisdictionChart.data.datasets[0].data = data.chartData;
-            
-            jurisdictionChart.data.datasets[0].backgroundColor = [
-                'rgba(107, 114, 128, 0.2)',
-                'rgba(107, 114, 128, 0.2)',
-                'rgba(107, 114, 128, 0.2)'
-            ];
-            jurisdictionChart.data.datasets[0].borderColor = [
-                'rgba(107, 114, 128, 0.4)',
-                'rgba(107, 114, 128, 0.4)',
-                'rgba(107, 114, 128, 0.4)'
-            ];
-            
-            let activeIndex;
-            if (id === 'model') activeIndex = 0;
-            if (id === 'real') activeIndex = 1;
-            if (id === 'denial') activeIndex = 2;
+                // 3. Build HTML for details
+                const contentHTML = `
+                    <div>
+                        <h5 class="text-xl font-bold mb-2 text-slate-800 border-b pb-1">Core Stance</h5>
+                        <p class="text-base text-slate-700 mb-4">${delegate.stance.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<strong>$1</strong>')}</p>
+                    </div>
+                    <div>
+                        <h5 class="text-xl font-bold mb-2 text-slate-800 border-b pb-1">Strategic Alignment Score</h5>
+                        <p class="text-lg font-bold ${delegate.alignment > 0 ? 'text-green-600' : (delegate.alignment < 0 ? 'text-red-600' : 'text-yellow-600')}">
+                            ${delegate.alignment} (Intervention ${delegate.alignment > 0 ? 'Support' : (delegate.alignment < 0 ? 'Opposed' : 'Neutral')})
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <h5 class="text-xl font-bold mb-2 text-slate-800 text-green-600">Identified Allies (${allies.length})</h5>
+                            <ul class="list-disc list-inside space-y-1 text-sm pl-4">
+                                ${allies.length > 0 ? allies.map(a => `<li>${a}</li>`).join('') : '<li class="italic text-slate-500">None identified.</li>'}
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="text-xl font-bold mb-2 text-slate-800 text-red-600">Primary Opponents (${opponents.length})</h5>
+                            <ul class="list-disc list-inside space-y-1 text-sm pl-4">
+                                ${opponents.length > 0 ? opponents.map(o => `<li>${o}</li>`).join('') : '<li class="italic text-slate-500">None identified.</li>'}
+                            </ul>
+                        </div>
+                    </div>
+                `;
 
-            jurisdictionChart.data.datasets[0].backgroundColor[activeIndex] = (id === 'model' ? 'rgba(13, 148, 136, 0.6)' : (id === 'real' ? 'rgba(59, 130, 246, 0.6)' : 'rgba(239, 68, 68, 0.6)'));
-            jurisdictionChart.data.datasets[0].borderColor[activeIndex] = (id === 'model' ? 'rgba(13, 148, 136, 1)' : (id === 'real' ? 'rgba(59, 130, 246, 1)' : 'rgba(239, 68, 68, 1)'));
-
-            jurisdictionChart.update();
-
-            document.querySelectorAll('.scenario-btn').forEach(btn => {
-                btn.classList.remove('bg-teal-600', 'text-white', 'border-teal-600');
-                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
-                
-                if (btn.id.includes('model')) btn.classList.add('border-teal-600', 'text-teal-700');
-                if (btn.id.includes('real')) btn.classList.add('border-slate-400', 'text-slate-600');
-                if (btn.id.includes('denial')) btn.classList.add('border-red-500', 'text-red-600');
-            });
-            
-            let activeBtn;
-            if (id === 'model') activeBtn = document.getElementById('btn-scenario-model');
-            if (id === 'real') activeBtm = document.getElementById('btn-scenario-real');
-            if (id === 'denial') activeBtn = document.getElementById('btn-scenario-denial');
-            
-            if (activeBtn) {
-                 if (id === 'model') activeBtn.classList.add('bg-teal-600', 'text-white');
-                 if (id === 'real') activeBtn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                 if (id === 'denial') activeBtn.classList.add('bg-red-600', 'text-white', 'border-red-600');
+                // 4. Update the panel content
+                detailContent.innerHTML = contentHTML;
             }
-        }
+
+            function renderDelegateList() {
+                delegateList.innerHTML = '';
+                delegateData.forEach(delegate => {
+                    const item = document.createElement('div');
+                    item.className = 'delegate-item';
+                    item.dataset.id = delegate.id;
+                    item.innerHTML = `
+                        <p class="font-semibold">${delegate.name}</p>
+                        <p class="text-xs text-slate-500">${delegate.entity}</p>
+                    `;
+                    
+                    item.addEventListener('click', () => {
+                        // Remove active class from all items
+                        document.querySelectorAll('.delegate-item').forEach(d => d.classList.remove('active'));
+                        // Add active class to the clicked item
+                        item.classList.add('active');
+                        // Display details in the panel
+                        displayDelegateDetails(delegate.id);
+                    });
+
+                    delegateList.appendChild(item);
+                });
+
+                // Load the first delegate by default for better UX
+                if (delegateData.length > 0) {
+                    delegateList.firstChild.click();
+                }
+            }
+
+            function renderKeyTerms() {
+                termsList.innerHTML = '';
+                keyTermsData.forEach(term => {
+                    const item = document.createElement('div');
+                    item.className = 'pt-4 pb-4';
+                    item.innerHTML = `
+                        <dt class="text-md font-semibold text-slate-800">${term.term}</dt>
+                        <dd class="mt-1 text-sm text-slate-600">${term.definition}</dd>
+                        <dd class="mt-1 text-xs text-sky-700 italic"><strong>Significance:</strong> ${term.significance.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<strong>$1</strong>')}</dd>
+                    `;
+                    termsList.appendChild(item);
+                });
+            }
+
+            function renderResolutions() {
+                resolutionsGrid.innerHTML = '';
+                resolutionData.forEach(res => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-6 rounded-lg shadow-lg';
+                    card.innerHTML = `
+                        <h3 class="text-xl font-bold mb-3 text-slate-900">${res.title}</h3>
+                        <p class="text-slate-600 mb-4">${res.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<strong>$1</strong>')}</p>
+                        <div class="text-sm text-slate-500 bg-slate-50 p-3 rounded-md">${res.details.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<strong>$1</strong>')}</div>
+                    `;
+                    resolutionsGrid.appendChild(card);
+                });
+            }
+
+            function renderStanceChart() {
+                const ctx = document.getElementById('stanceChart').getContext('2d');
+                const sortedData = [...delegateData].sort((a, b) => a.alignment - b.alignment);
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedData.map(d => `${d.name} (${d.entity.substring(0, 15)}...)`),
+                        datasets: [{
+                            label: 'Stance on Intervention',
+                            data: sortedData.map(d => d.alignment),
+                            backgroundColor: sortedData.map(d => d.alignment > 0 ? 'rgba(56, 189, 248, 0.6)' : 'rgba(239, 68, 68, 0.6)'),
+                            borderColor: sortedData.map(d => d.alignment > 0 ? 'rgba(56, 189, 248, 1)' : 'rgba(239, 68, 68, 1)'),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Dismiss Case <--- (Stance Score) ---> Full Intervention'
+                                },
+                                ticks: {
+                                    display: true
+                                },
+                                grid: {
+                                    display: true
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const delegate = sortedData[context.dataIndex];
+                                        let label = `${delegate.name}: ${delegate.alignment}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function trackVisibleSection() {
+                const sections = document.querySelectorAll('section');
+                const navLinks = document.querySelectorAll('.nav-link');
+                
+                let currentSection = '';
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                            currentSection = entry.target.id;
+                        }
+                    });
+                    
+                    navLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${currentSection}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }, { threshold: 0.5 });
+
+                sections.forEach(section => observer.observe(section));
+            }
+
+            renderDelegateList();
+            renderKeyTerms();
+            renderResolutions();
+            renderStanceChart();
+            trackVisibleSection();
+        });
     </script>
 </body>
 </html>
